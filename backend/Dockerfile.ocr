@@ -1,0 +1,55 @@
+# OCR Microservice Dockerfile
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies for OCR
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-spa \
+    tesseract-ocr-fra \
+    libtesseract-dev \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements for OCR
+COPY requirements.txt .
+
+# Install OCR-specific dependencies
+RUN pip install --no-cache-dir \
+    pytesseract==0.3.10 \
+    opencv-python==4.8.1.78 \
+    pdf2image==1.16.3 \
+    easyocr==1.7.0 \
+    Pillow==10.1.0 \
+    PyMuPDF==1.23.8
+
+# Copy OCR service code
+COPY services/ocr_service.py .
+COPY services/__init__.py .
+
+# Create uploads directory
+RUN mkdir -p uploads/temp
+
+# Expose port
+EXPOSE 8002
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8002/health || exit 1
+
+# Run OCR service
+CMD ["python", "-m", "uvicorn", "ocr_service:app", "--host", "0.0.0.0", "--port", "8002"]

@@ -1,0 +1,275 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: resume_analyzer_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: resume_analyzer
+    volumes:
+      - mongodb_data:/data/db
+      - ./data/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - resume_analyzer_network
+
+  # Redis for caching and message queuing
+  redis:
+    image: redis:7-alpine
+    container_name: resume_analyzer_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - resume_analyzer_network
+
+  # Main FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resume_analyzer_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - DATABASE_NAME=resume_analyzer
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - REDIS_URL=redis://redis:6379
+      - ENABLE_ML_MODELS=true
+      - ENABLE_LLM=false
+      - ENABLE_OCR=true
+      - ENABLE_MULTILINGUAL=true
+      - ENABLE_ONTOLOGY=true
+      - ENABLE_BIAS_DETECTION=true
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ML Models Microservice
+  ml-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.ml
+    container_name: resume_analyzer_ml_service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_NAME=ml-models
+    volumes:
+      - ./backend:/app
+      - ./models:/app/models
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: uvicorn services.ml_service:app --host 0.0.0.0 --port 8001
+
+  # OCR Microservice
+  ocr-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.ocr
+    container_name: resume_analyzer_ocr_service
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_NAME=ocr
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: uvicorn services.ocr_service:app --host 0.0.0.0 --port 8002
+
+  # LLM Microservice
+  llm-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.llm
+    container_name: resume_analyzer_llm_service
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - SERVICE_NAME=llm
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: uvicorn services.llm_service:app --host 0.0.0.0 --port 8003
+
+  # Ontology Microservice
+  ontology-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.ontology
+    container_name: resume_analyzer_ontology_service
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_NAME=ontology
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: uvicorn services.ontology_service:app --host 0.0.0.0 --port 8004
+
+  # Bias Detection Microservice
+  bias-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.bias
+    container_name: resume_analyzer_bias_service
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_NAME=bias-detection
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: uvicorn services.bias_service:app --host 0.0.0.0 --port 8005
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resume_analyzer_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_ML_SERVICE_URL=http://localhost:8001
+      - REACT_APP_OCR_SERVICE_URL=http://localhost:8002
+      - REACT_APP_LLM_SERVICE_URL=http://localhost:8003
+      - REACT_APP_ONTOLOGY_SERVICE_URL=http://localhost:8004
+      - REACT_APP_BIAS_SERVICE_URL=http://localhost:8005
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - resume_analyzer_network
+    command: npm start
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: resume_analyzer_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.microservices.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+      - ml-service
+      - ocr-service
+      - llm-service
+      - ontology-service
+      - bias-service
+    networks:
+      - resume_analyzer_network
+
+  # Celery Worker for Background Tasks
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resume_analyzer_celery_worker
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: celery -A services.celery_app worker --loglevel=info
+
+  # Celery Beat for Scheduled Tasks
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resume_analyzer_celery_beat
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - resume_analyzer_network
+    command: celery -A services.celery_app beat --loglevel=info
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  resume_analyzer_network:
+    driver: bridge
