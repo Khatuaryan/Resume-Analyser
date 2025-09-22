@@ -10,7 +10,7 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'candidate',
+    role: 'candidate', // Always candidate
     phone: '',
     company: ''
   });
@@ -64,9 +64,12 @@ const Register = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+            Create your candidate account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
+            Join as a candidate to upload your resume and get job recommendations
+          </p>
+          <p className="mt-1 text-center text-sm text-gray-600">
             Or{' '}
             <Link
               to="/login"
@@ -79,51 +82,8 @@ const Register = () => {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
-            {/* Role Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                I am a:
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <label className={`relative flex cursor-pointer rounded-lg p-4 focus:outline-none ${
-                  formData.role === 'candidate' 
-                    ? 'ring-2 ring-primary-500 bg-primary-50' 
-                    : 'ring-1 ring-gray-300 bg-white'
-                }`}>
-                  <input
-                    type="radio"
-                    name="role"
-                    value="candidate"
-                    checked={formData.role === 'candidate'}
-                    onChange={handleChange}
-                    className="sr-only"
-                  />
-                  <div className="flex items-center">
-                    <UserCheck className="h-5 w-5 text-primary-600 mr-2" />
-                    <span className="text-sm font-medium">Candidate</span>
-                  </div>
-                </label>
-                
-                <label className={`relative flex cursor-pointer rounded-lg p-4 focus:outline-none ${
-                  formData.role === 'hr' 
-                    ? 'ring-2 ring-primary-500 bg-primary-50' 
-                    : 'ring-1 ring-gray-300 bg-white'
-                }`}>
-                  <input
-                    type="radio"
-                    name="role"
-                    value="hr"
-                    checked={formData.role === 'hr'}
-                    onChange={handleChange}
-                    className="sr-only"
-                  />
-                  <div className="flex items-center">
-                    <Building2 className="h-5 w-5 text-primary-600 mr-2" />
-                    <span className="text-sm font-medium">HR</span>
-                  </div>
-                </label>
-              </div>
-            </div>
+            {/* Role Selection - Hidden, always candidate */}
+            <input type="hidden" name="role" value="candidate" />
 
             {/* Full Name */}
             <div>
@@ -188,29 +148,26 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Company (for HR) */}
-            {formData.role === 'hr' && (
-              <div>
-                <label htmlFor="company" className="block text-sm font-medium text-gray-700">
-                  Company
-                </label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Building2 className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="company"
-                    name="company"
-                    type="text"
-                    required
-                    className="input pl-10"
-                    placeholder="Enter your company name"
-                    value={formData.company}
-                    onChange={handleChange}
-                  />
+            {/* Company (Optional for candidates) */}
+            <div>
+              <label htmlFor="company" className="block text-sm font-medium text-gray-700">
+                Current Company (Optional)
+              </label>
+              <div className="mt-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Building2 className="h-5 w-5 text-gray-400" />
                 </div>
+                <input
+                  id="company"
+                  name="company"
+                  type="text"
+                  className="input pl-10"
+                  placeholder="Enter your current company (optional)"
+                  value={formData.company}
+                  onChange={handleChange}
+                />
               </div>
-            )}
+            </div>
 
             {/* Password */}
             <div>

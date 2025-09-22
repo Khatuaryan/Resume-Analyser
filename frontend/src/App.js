@@ -13,6 +13,8 @@ import HRDashboard from './pages/HRDashboard';
 import CandidateDashboard from './pages/CandidateDashboard';
 import JobPosting from './pages/JobPosting';
 import JobDetails from './pages/JobDetails';
+import JobAnalytics from './pages/JobAnalytics';
+import JobCandidates from './pages/JobCandidates';
 import CandidateRanking from './pages/CandidateRanking';
 import ResumeUpload from './pages/ResumeUpload';
 import SkillSuggestions from './pages/SkillSuggestions';
@@ -53,6 +55,8 @@ function App() {
                 <Route path="/hr" element={<HRDashboard />} />
                 <Route path="/hr/jobs" element={<JobPosting />} />
                 <Route path="/hr/jobs/:jobId" element={<JobDetails />} />
+                <Route path="/hr/jobs/:jobId/analytics" element={<JobAnalytics />} />
+                <Route path="/hr/jobs/:jobId/candidates" element={<JobCandidates />} />
                 <Route path="/hr/candidates/:jobId" element={<CandidateRanking />} />
                 
                 {/* Candidate Routes */}

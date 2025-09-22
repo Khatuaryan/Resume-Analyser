@@ -104,13 +104,14 @@ class OntologyService:
         # Add skill nodes
         for category, skills in self.skill_ontology.items():
             for skill, attributes in skills.items():
-                self.knowledge_graph.add_node(
-                    skill, 
-                    type='skill', 
-                    category=category,
-                    level=attributes.get('level', 'beginner'),
-                    **attributes
-                )
+                # Create a copy of attributes to avoid conflicts
+                node_attributes = attributes.copy()
+                node_attributes.update({
+                    'type': 'skill',
+                    'category': category,
+                    'level': attributes.get('level', 'beginner')
+                })
+                self.knowledge_graph.add_node(skill, **node_attributes)
         
         # Add job nodes
         for job, attributes in self.job_ontology.items():

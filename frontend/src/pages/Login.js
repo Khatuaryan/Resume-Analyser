@@ -31,13 +31,9 @@ const Login = () => {
       
       if (result.success) {
         toast.success('Login successful!');
-        // Navigate based on user role
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (user.role === 'hr') {
-          navigate('/hr');
-        } else {
-          navigate('/candidate');
-        }
+        // Navigate based on user role - the user data is now available in AuthContext
+        // The ProtectedRoute will handle the navigation based on the user role
+        navigate('/');
       } else {
         toast.error(result.error);
       }

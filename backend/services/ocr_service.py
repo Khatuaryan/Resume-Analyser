@@ -8,16 +8,32 @@ import asyncio
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
-import cv2
-import numpy as np
-from PIL import Image
-import pytesseract
-import easyocr
-from pdf2image import convert_from_path
-import fitz  # PyMuPDF
 import io
 import base64
 from datetime import datetime
+
+# Optional imports for OCR functionality
+try:
+    import cv2
+    import numpy as np
+    from PIL import Image
+    import pytesseract
+    import easyocr
+    from pdf2image import convert_from_path
+    import fitz  # PyMuPDF
+    OCR_AVAILABLE = True
+except ImportError as e:
+    logger = logging.getLogger(__name__)
+    logger.warning(f"OCR dependencies not available: {e}")
+    OCR_AVAILABLE = False
+    # Create dummy classes to prevent import errors
+    cv2 = None
+    np = None
+    Image = None
+    pytesseract = None
+    easyocr = None
+    convert_from_path = None
+    fitz = None
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +41,8 @@ class OCRService:
     """Service for OCR and multi-modal resume parsing."""
     
     def __init__(self):
+        if not OCR_AVAILABLE:
+            logger.warning("OCR service initialized but dependencies not available")
         self.tesseract_path = None
         self.easyocr_reader = None
         self.supported_formats = ['pdf', 'png', 'jpg', 'jpeg', 'tiff', 'bmp']
@@ -32,7 +50,8 @@ class OCRService:
         self.primary_engine = 'tesseract'
         
         # Initialize OCR engines
-        self._initialize_engines()
+        if OCR_AVAILABLE:
+            self._initialize_engines()
     
     def _initialize_engines(self):
         """Initialize OCR engines."""
@@ -168,7 +187,7 @@ class OCRService:
             logger.error(f"Error extracting from image file: {e}")
             return ""
     
-    async def _preprocess_image(self, image: np.ndarray) -> np.ndarray:
+    async def _preprocess_image(self, image: "np.ndarray") -> "np.ndarray":
         """Preprocess image for better OCR results."""
         try:
             # Convert to grayscale
@@ -193,7 +212,7 @@ class OCRService:
             logger.warning(f"Image preprocessing failed: {e}")
             return image
     
-    async def _ocr_image(self, image: np.ndarray, language: str) -> str:
+    async def _ocr_image(self, image: "np.ndarray", language: str) -> str:
         """Extract text from image using available OCR engines."""
         texts = []
         

@@ -5,27 +5,22 @@ import {
   User, 
   Mail, 
   Phone, 
-  Building2, 
   Save,
   Edit,
-  Lock,
-  Eye,
-  EyeOff
+  Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
   const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { register, handleSubmit, reset, setValue } = useForm({
     defaultValues: {
       full_name: user?.full_name || '',
       email: user?.email || '',
-      phone: user?.phone || '',
-      company: user?.company || ''
+      phone: user?.phone || ''
     }
   });
 
@@ -51,7 +46,6 @@ const Profile = () => {
     setValue('full_name', user?.full_name || '');
     setValue('email', user?.email || '');
     setValue('phone', user?.phone || '');
-    setValue('company', user?.company || '');
   };
 
   const handleCancel = () => {
@@ -70,7 +64,7 @@ const Profile = () => {
         {!isEditing && (
           <button
             onClick={handleEdit}
-            className="btn btn-outline"
+            className="btn btn-outline px-6 py-3"
           >
             <Edit className="h-4 w-4 mr-2" />
             Edit Profile
@@ -110,10 +104,12 @@ const Profile = () => {
                     <input
                       {...register('email', { required: true })}
                       type="email"
-                      className="input pl-10"
+                      className="input pl-10 bg-gray-50 cursor-not-allowed"
                       placeholder="Enter your email"
+                      readOnly
                     />
                   </div>
+                  <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
                 </div>
 
                 <div>
@@ -131,35 +127,20 @@ const Profile = () => {
                   </div>
                 </div>
 
-                {user?.role === 'hr' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Company</label>
-                    <div className="mt-1 relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Building2 className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        {...register('company')}
-                        className="input pl-10"
-                        placeholder="Enter your company name"
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
 
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-4">
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary px-6 py-3"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn btn-primary"
+                  className="btn btn-primary px-6 py-3"
                 >
                   {loading ? (
                     <div className="flex items-center">
@@ -202,15 +183,6 @@ const Profile = () => {
                   </div>
                 </div>
 
-                {user?.role === 'hr' && (
-                  <div className="flex items-center">
-                    <Building2 className="h-5 w-5 text-gray-400 mr-3" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Company</p>
-                      <p className="text-sm text-gray-600">{user?.company || 'Not provided'}</p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="border-t pt-6">
@@ -282,7 +254,7 @@ const Profile = () => {
               <div>
                 <p className="text-sm font-medium text-gray-900">Member Since</p>
                 <p className="text-sm text-gray-600">
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+                  January 1, 2024
                 </p>
               </div>
             </div>

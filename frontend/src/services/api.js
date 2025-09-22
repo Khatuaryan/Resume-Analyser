@@ -55,6 +55,14 @@ export const jobsAPI = {
   getHRJobs: () => api.get('/api/jobs/hr/my-jobs'),
   getJobApplications: (jobId) => api.get(`/api/jobs/${jobId}/applications`),
   applyToJob: (jobId, applicationData) => api.post(`/api/jobs/${jobId}/apply`, applicationData),
+  
+  // New job management endpoints
+  updateJobStatus: (jobId, statusData) => api.patch(`/api/jobs/${jobId}/status`, statusData),
+  getJobAnalytics: (jobId) => api.get(`/api/jobs/${jobId}/analytics`),
+  getJobCandidates: (jobId) => api.get(`/api/jobs/${jobId}/candidates`),
+  updateCandidateStatus: (jobId, candidateId, status) => 
+    api.patch(`/api/jobs/${jobId}/candidates/${candidateId}/status`, { status }),
+  checkAutoCompleteJobs: () => api.get('/api/jobs/hr/auto-complete-check'),
 };
 
 // Resumes API

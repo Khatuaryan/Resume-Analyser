@@ -24,7 +24,7 @@ security = HTTPBearer()
 
 @router.post("/register", response_model=UserResponse)
 async def register_user(user_data: UserCreate):
-    """Register a new user (HR or Candidate)."""
+    """Register a new candidate user only."""
     users_collection = get_collection("users")
     
     # Check if user already exists
@@ -34,6 +34,9 @@ async def register_user(user_data: UserCreate):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
+    
+    # Force all registrations to be candidates
+    user_role = "candidate"
     
     # Create user document
     user_id = str(uuid.uuid4())
@@ -45,7 +48,7 @@ async def register_user(user_data: UserCreate):
         "full_name": user_data.full_name,
         "phone": user_data.phone,
         "company": user_data.company,
-        "role": user_data.role,
+        "role": user_role,  # Always candidate
         "hashed_password": hashed_password,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -67,7 +70,7 @@ async def register_user(user_data: UserCreate):
         full_name=user_data.full_name,
         phone=user_data.phone,
         company=user_data.company,
-        role=user_data.role,
+        role=user_role,
         created_at=user_doc["created_at"],
         updated_at=user_doc["updated_at"],
         is_active=True
@@ -78,7 +81,53 @@ async def login_user(login_data: UserLogin):
     """Authenticate user and return access token."""
     users_collection = get_collection("users")
     
-    # Find user by email
+    # Special case: admin login
+    if login_data.email == "admin@resumeanalyzer.com" and login_data.password == "password123@":
+        # Find admin user
+        user = await users_collection.find_one({"email": "admin@resumeanalyzer.com"})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Admin user not found. Please contact system administrator."
+            )
+        
+        # Check if admin is active
+        if not user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Admin account is deactivated"
+            )
+        
+        # Create access token for admin
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={
+                "sub": user["_id"],
+                "email": user["email"],
+                "role": "hr"
+            },
+            expires_delta=access_token_expires
+        )
+        
+        # Return token and user info
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserResponse(
+                id=user["_id"],
+                email=user["email"],
+                full_name=user["full_name"],
+                phone=user.get("phone"),
+                company=user.get("company"),
+                role="hr",
+                created_at=user["created_at"],
+                updated_at=user["updated_at"],
+                is_active=user.get("is_active", True)
+            )
+        )
+    
+    # Regular user login (candidates only)
     user = await users_collection.find_one({"email": login_data.email})
     if not user:
         raise HTTPException(
@@ -100,13 +149,16 @@ async def login_user(login_data: UserLogin):
             detail="Account is deactivated"
         )
     
+    # Ensure all non-admin users are candidates
+    user_role = "candidate"
+    
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={
             "sub": user["_id"],
             "email": user["email"],
-            "role": user["role"]
+            "role": user_role
         },
         expires_delta=access_token_expires
     )
@@ -122,7 +174,7 @@ async def login_user(login_data: UserLogin):
             full_name=user["full_name"],
             phone=user.get("phone"),
             company=user.get("company"),
-            role=user["role"],
+            role=user_role,
             created_at=user["created_at"],
             updated_at=user["updated_at"],
             is_active=user.get("is_active", True)

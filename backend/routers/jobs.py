@@ -11,7 +11,8 @@ import uuid
 from database.connection import get_collection
 from models.job import (
     JobCreate, JobUpdate, JobResponse, JobSearch, JobApplication,
-    JobApplicationResponse, JobStatus
+    JobApplicationResponse, JobStatus, JobAnalytics, JobStatusUpdate,
+    JobCompletionNotification
 )
 from auth.jwt_handler import get_current_hr_user, get_current_user
 from services.nlp_service import calculate_candidate_score
@@ -28,6 +29,9 @@ async def create_job(
     
     # Create job document
     job_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+    completion_date = now.replace(day=now.day + job_data.auto_complete_days) if job_data.auto_complete_days else None
+    
     job_doc = {
         "_id": job_id,
         "hr_id": current_user.user_id,
@@ -44,11 +48,16 @@ async def create_job(
         "benefits": job_data.benefits,
         "requirements": job_data.requirements,
         "responsibilities": job_data.responsibilities,
+        "auto_complete_days": job_data.auto_complete_days,
+        "completion_date": completion_date,
         "status": JobStatus.ACTIVE,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
+        "created_at": now,
+        "updated_at": now,
         "application_count": 0,
-        "view_count": 0
+        "view_count": 0,
+        "unique_view_count": 0,
+        "completed_at": None,
+        "is_auto_completed": False
     }
     
     # Insert job into database
@@ -59,6 +68,8 @@ async def create_job(
             detail="Failed to create job"
         )
     
+    # Map _id to id for Pydantic model
+    job_doc['id'] = job_doc['_id']
     return JobResponse(**job_doc)
 
 @router.get("/", response_model=List[JobResponse])
@@ -80,6 +91,9 @@ async def get_jobs(
     cursor = jobs_collection.find(filter_query).skip(skip).limit(limit)
     jobs = await cursor.to_list(length=limit)
     
+    # Map _id to id for each job
+    for job in jobs:
+        job['id'] = job['_id']
     return [JobResponse(**job) for job in jobs]
 
 @router.get("/search", response_model=List[JobResponse])
@@ -123,6 +137,9 @@ async def search_jobs(
     cursor = jobs_collection.find(search_query).skip(skip).limit(limit)
     jobs = await cursor.to_list(length=limit)
     
+    # Map _id to id for each job
+    for job in jobs:
+        job['id'] = job['_id']
     return [JobResponse(**job) for job in jobs]
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -146,6 +163,8 @@ async def get_job(
         {"$inc": {"view_count": 1}}
     )
     
+    # Map _id to id for Pydantic model
+    job['id'] = job['_id']
     return JobResponse(**job)
 
 @router.put("/{job_id}", response_model=JobResponse)
@@ -191,6 +210,8 @@ async def update_job(
     
     # Return updated job
     updated_job = await jobs_collection.find_one({"_id": job_id})
+    # Map _id to id for Pydantic model
+    updated_job['id'] = updated_job['_id']
     return JobResponse(**updated_job)
 
 @router.delete("/{job_id}")
@@ -352,4 +373,232 @@ async def get_hr_jobs(
     
     jobs = await jobs_collection.find({"hr_id": current_user.user_id}).to_list(length=None)
     
+    # Map _id to id for each job
+    for job in jobs:
+        job['id'] = job['_id']
     return [JobResponse(**job) for job in jobs]
+
+@router.patch("/{job_id}/status", response_model=JobResponse)
+async def update_job_status(
+    job_id: str,
+    status_update: JobStatusUpdate,
+    current_user: dict = Depends(get_current_hr_user)
+):
+    """Update job status (active/inactive/completed)."""
+    jobs_collection = get_collection("jobs")
+    
+    # Check if job exists and belongs to HR
+    job = await jobs_collection.find_one({"_id": job_id, "hr_id": current_user.user_id})
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+    
+    # Prevent reactivating completed jobs
+    if job.get("status") == JobStatus.COMPLETED and status_update.status != JobStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot reactivate completed jobs"
+        )
+    
+    # Update job status
+    update_data = {
+        "status": status_update.status,
+        "updated_at": datetime.utcnow()
+    }
+    
+    # If completing job, set completion date
+    if status_update.status == JobStatus.COMPLETED:
+        update_data["completed_at"] = datetime.utcnow()
+    
+    await jobs_collection.update_one(
+        {"_id": job_id},
+        {"$set": update_data}
+    )
+    
+    # Get updated job
+    updated_job = await jobs_collection.find_one({"_id": job_id})
+    updated_job['id'] = updated_job['_id']
+    return JobResponse(**updated_job)
+
+@router.get("/{job_id}/analytics", response_model=JobAnalytics)
+async def get_job_analytics(
+    job_id: str,
+    current_user: dict = Depends(get_current_hr_user)
+):
+    """Get analytics for a specific job."""
+    jobs_collection = get_collection("jobs")
+    applications_collection = get_collection("applications")
+    
+    # Check if job exists and belongs to HR
+    job = await jobs_collection.find_one({"_id": job_id, "hr_id": current_user.user_id})
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+    
+    # Get applications for this job
+    applications = await applications_collection.find({"job_id": job_id}).to_list(length=None)
+    
+    # Calculate analytics
+    total_applications = len(applications)
+    unique_views = job.get("unique_view_count", 0)
+    hr_views = job.get("view_count", 0) - unique_views
+    application_rate = (total_applications / unique_views) if unique_views > 0 else 0.0
+    
+    # Analyze applications
+    status_distribution = {}
+    experience_distribution = {}
+    location_distribution = {}
+    all_skills = []
+    
+    for app in applications:
+        # Status distribution
+        status = app.get("status", "pending")
+        status_distribution[status] = status_distribution.get(status, 0) + 1
+        
+        # Get candidate info for additional analytics
+        candidate = await get_collection("users").find_one({"_id": app["candidate_id"]})
+        if candidate:
+            # Experience distribution
+            exp_level = candidate.get("experience_level", "unknown")
+            experience_distribution[exp_level] = experience_distribution.get(exp_level, 0) + 1
+            
+            # Location distribution
+            location = candidate.get("location", "unknown")
+            location_distribution[location] = location_distribution.get(location, 0) + 1
+    
+    # Get top skills from applications
+    # This would need to be enhanced based on your resume analysis data
+    
+    analytics = JobAnalytics(
+        job_id=job_id,
+        total_applications=total_applications,
+        unique_views=unique_views,
+        hr_views=hr_views,
+        application_rate=application_rate,
+        top_skills=all_skills[:10],  # Top 10 skills
+        experience_distribution=experience_distribution,
+        location_distribution=location_distribution,
+        status_distribution=status_distribution,
+        created_at=job["created_at"],
+        updated_at=job["updated_at"]
+    )
+    
+    return analytics
+
+@router.get("/{job_id}/candidates", response_model=List[JobApplicationResponse])
+async def get_job_candidates(
+    job_id: str,
+    current_user: dict = Depends(get_current_hr_user)
+):
+    """Get all candidates who applied to a specific job."""
+    jobs_collection = get_collection("jobs")
+    applications_collection = get_collection("applications")
+    users_collection = get_collection("users")
+    
+    # Check if job exists and belongs to HR
+    job = await jobs_collection.find_one({"_id": job_id, "hr_id": current_user.user_id})
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+    
+    # Get applications with candidate details
+    applications = await applications_collection.find({"job_id": job_id}).to_list(length=None)
+    
+    candidate_applications = []
+    for app in applications:
+        candidate = await users_collection.find_one({"_id": app["candidate_id"]})
+        if candidate:
+            candidate_applications.append(JobApplicationResponse(
+                id=app["_id"],
+                job_id=app["job_id"],
+                candidate_id=app["candidate_id"],
+                candidate_name=candidate.get("full_name", "Unknown"),
+                candidate_email=candidate.get("email", "Unknown"),
+                cover_letter=app.get("cover_letter"),
+                application_date=app.get("application_date", datetime.utcnow()),
+                status=app.get("status", "pending"),
+                resume_id=app.get("resume_id"),
+                match_score=app.get("match_score")
+            ))
+    
+    return candidate_applications
+
+@router.patch("/{job_id}/candidates/{candidate_id}/status")
+async def update_candidate_status(
+    job_id: str,
+    candidate_id: str,
+    status: str,
+    current_user: dict = Depends(get_current_hr_user)
+):
+    """Update candidate application status."""
+    applications_collection = get_collection("applications")
+    jobs_collection = get_collection("jobs")
+    
+    # Check if job exists and belongs to HR
+    job = await jobs_collection.find_one({"_id": job_id, "hr_id": current_user.user_id})
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+    
+    # Update application status
+    result = await applications_collection.update_one(
+        {"job_id": job_id, "candidate_id": candidate_id},
+        {"$set": {"status": status, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
+    
+    return {"message": f"Candidate status updated to {status}"}
+
+@router.get("/hr/auto-complete-check")
+async def check_auto_complete_jobs(
+    current_user: dict = Depends(get_current_hr_user)
+):
+    """Check and auto-complete jobs that have reached their completion date."""
+    jobs_collection = get_collection("jobs")
+    now = datetime.utcnow()
+    
+    # Find jobs that should be auto-completed
+    jobs_to_complete = await jobs_collection.find({
+        "hr_id": current_user.user_id,
+        "status": JobStatus.ACTIVE,
+        "completion_date": {"$lte": now}
+    }).to_list(length=None)
+    
+    completed_jobs = []
+    for job in jobs_to_complete:
+        # Update job status to completed
+        await jobs_collection.update_one(
+            {"_id": job["_id"]},
+            {
+                "$set": {
+                    "status": JobStatus.COMPLETED,
+                    "completed_at": now,
+                    "is_auto_completed": True,
+                    "updated_at": now
+                }
+            }
+        )
+        
+        completed_jobs.append({
+            "job_id": job["_id"],
+            "title": job["title"],
+            "completion_date": job["completion_date"]
+        })
+    
+    return {
+        "message": f"Auto-completed {len(completed_jobs)} jobs",
+        "completed_jobs": completed_jobs
+    }

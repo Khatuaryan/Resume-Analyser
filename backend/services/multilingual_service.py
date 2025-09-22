@@ -8,7 +8,12 @@ import asyncio
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 import spacy
-from googletrans import Translator
+try:
+    from googletrans import Translator
+    GOOGLETRANS_AVAILABLE = True
+except ImportError:
+    GOOGLETRANS_AVAILABLE = False
+    Translator = None
 from langdetect import detect, DetectorFactory
 import re
 from datetime import datetime
@@ -32,7 +37,10 @@ class MultilingualService:
         }
         
         self.nlp_models = {}
-        self.translator = Translator()
+        if GOOGLETRANS_AVAILABLE:
+            self.translator = Translator()
+        else:
+            self.translator = None
         self.initialized = False
         
         # Language-specific patterns
@@ -67,11 +75,23 @@ class MultilingualService:
             for lang_code in ['en', 'es', 'fr']:
                 try:
                     if lang_code == 'en':
-                        self.nlp_models[lang_code] = spacy.load("en_core_web_sm")
+                        try:
+                            self.nlp_models[lang_code] = spacy.load("en_core_web_sm")
+                        except OSError:
+                            logger.warning("spaCy model 'en_core_web_sm' not found. Using basic English model.")
+                            self.nlp_models[lang_code] = spacy.blank("en")
                     elif lang_code == 'es':
-                        self.nlp_models[lang_code] = spacy.load("es_core_news_sm")
+                        try:
+                            self.nlp_models[lang_code] = spacy.load("es_core_news_sm")
+                        except OSError:
+                            logger.warning("spaCy model 'es_core_news_sm' not found. Using basic Spanish model.")
+                            self.nlp_models[lang_code] = spacy.blank("es")
                     elif lang_code == 'fr':
-                        self.nlp_models[lang_code] = spacy.load("fr_core_news_sm")
+                        try:
+                            self.nlp_models[lang_code] = spacy.load("fr_core_news_sm")
+                        except OSError:
+                            logger.warning("spaCy model 'fr_core_news_sm' not found. Using basic French model.")
+                            self.nlp_models[lang_code] = spacy.blank("fr")
                     
                     logger.info(f"Loaded {lang_code} model successfully")
                 except OSError:

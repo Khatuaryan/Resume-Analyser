@@ -28,7 +28,8 @@ class ExperienceLevel(str, Enum):
 class JobStatus(str, Enum):
     """Job status enumeration."""
     ACTIVE = "active"
-    CLOSED = "closed"
+    INACTIVE = "inactive"
+    COMPLETED = "completed"
     DRAFT = "draft"
 
 class JobBase(BaseModel):
@@ -46,6 +47,9 @@ class JobBase(BaseModel):
     benefits: List[str] = Field(default_factory=list)
     requirements: List[str] = Field(default_factory=list)
     responsibilities: List[str] = Field(default_factory=list)
+    # New fields for job lifecycle management
+    auto_complete_days: int = Field(default=15, ge=1, le=365)  # Days until auto-completion
+    completion_date: Optional[datetime] = None  # When job will be auto-completed
 
 class JobCreate(JobBase):
     """Job creation model."""
@@ -67,6 +71,7 @@ class JobUpdate(BaseModel):
     requirements: Optional[List[str]] = None
     responsibilities: Optional[List[str]] = None
     status: Optional[JobStatus] = None
+    auto_complete_days: Optional[int] = Field(None, ge=1, le=365)
 
 class JobResponse(JobBase):
     """Job response model."""
@@ -77,6 +82,11 @@ class JobResponse(JobBase):
     updated_at: datetime
     application_count: int = 0
     view_count: int = 0
+    # Analytics fields
+    unique_view_count: int = 0  # Views excluding HR views
+    completion_date: Optional[datetime] = None
+    completed_at: Optional[datetime] = None  # When job was actually completed
+    is_auto_completed: bool = False
 
     class Config:
         from_attributes = True
@@ -111,3 +121,30 @@ class JobApplicationResponse(JobApplication):
 
     class Config:
         from_attributes = True
+
+class JobAnalytics(BaseModel):
+    """Job analytics model."""
+    job_id: str
+    total_applications: int = 0
+    unique_views: int = 0
+    hr_views: int = 0
+    application_rate: float = 0.0  # Applications per view
+    top_skills: List[str] = Field(default_factory=list)
+    experience_distribution: dict = Field(default_factory=dict)
+    location_distribution: dict = Field(default_factory=dict)
+    status_distribution: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+class JobStatusUpdate(BaseModel):
+    """Job status update model."""
+    status: JobStatus
+    reason: Optional[str] = None
+
+class JobCompletionNotification(BaseModel):
+    """Job completion notification model."""
+    job_id: str
+    job_title: str
+    total_applications: int
+    completion_date: datetime
+    hr_email: str

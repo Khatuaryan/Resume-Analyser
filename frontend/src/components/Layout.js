@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -20,6 +20,17 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Redirect to appropriate dashboard based on role
+  useEffect(() => {
+    if (user && location.pathname === '/') {
+      if (isHR) {
+        navigate('/hr', { replace: true });
+      } else if (isCandidate) {
+        navigate('/candidate', { replace: true });
+      }
+    }
+  }, [user, isHR, isCandidate, location.pathname, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -135,18 +146,20 @@ const Layout = () => {
                   </span>
                 </div>
                 <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
-                <div className="flex items-center gap-x-2">
+                <div className="flex items-center gap-x-4">
                   <a
                     href="/profile"
-                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                    className="text-base font-medium text-gray-700 hover:text-gray-900 flex items-center gap-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
                   >
-                    <User className="h-5 w-5" />
+                    <User className="h-6 w-6" />
+                    <span className="hidden sm:block">Profile</span>
                   </a>
                   <button
                     onClick={handleLogout}
-                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                    className="text-base font-medium text-gray-700 hover:text-gray-900 flex items-center gap-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
                   >
-                    <LogOut className="h-5 w-5" />
+                    <LogOut className="h-6 w-6" />
+                    <span className="hidden sm:block">Logout</span>
                   </button>
                 </div>
               </div>
