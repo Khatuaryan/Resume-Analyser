@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   Home, 
   Briefcase, 
-  Users, 
   FileText, 
   TrendingUp, 
   User, 
@@ -40,7 +39,6 @@ const Layout = () => {
   const navigation = isHR ? [
     { name: 'Dashboard', href: '/hr', icon: Home },
     { name: 'Job Postings', href: '/hr/jobs', icon: Briefcase },
-    { name: 'Candidates', href: '/hr/candidates', icon: Users },
   ] : [
     { name: 'Dashboard', href: '/candidate', icon: Home },
     { name: 'Resume Upload', href: '/candidate/resume', icon: FileText },

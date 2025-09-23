@@ -45,6 +45,8 @@ class NLPService:
             except OSError:
                 logger.warning("spaCy model 'en_core_web_sm' not found. Using basic English model.")
                 self.nlp = spacy.blank("en")
+                # Add necessary components for basic processing
+                self.nlp.add_pipe("sentencizer")
             
             # Load sentence transformer model
             logger.info("Loading sentence transformer model...")

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -18,14 +18,67 @@ const ResumeUpload = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  
+  // Fallback state for direct API calls
+  const [fallbackResumes, setFallbackResumes] = useState([]);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
 
   const { data: resumes, isLoading } = useQuery('resumes', resumesAPI.getResumes);
+
+  // Use fallback data if React Query fails
+  const finalResumes = useFallback ? fallbackResumes : resumes;
+  const finalLoading = useFallback ? fallbackLoading : isLoading;
+
+  // Use fallback by default since React Query is not working reliably
+  useEffect(() => {
+    console.log('🚀 ResumeUpload mounted, using fallback by default...');
+    setUseFallback(true);
+    fetchResumesDirectly();
+  }, []);
+
+  // Direct API calls as fallback
+  const fetchResumesDirectly = async () => {
+    try {
+      setFallbackLoading(true);
+      console.log('🔄 Fetching resumes directly...');
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('❌ No auth token found');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/resumes/', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const resumesData = await response.json();
+        console.log('📄 Direct resumes result:', resumesData);
+        setFallbackResumes(resumesData);
+      }
+      
+    } catch (error) {
+      console.error('❌ Direct API call failed:', error);
+    } finally {
+      setFallbackLoading(false);
+    }
+  };
 
   const uploadMutation = useMutation(resumesAPI.uploadResume, {
     onSuccess: () => {
       toast.success('Resume uploaded successfully! Processing...');
       queryClient.invalidateQueries('resumes');
       setSelectedFile(null);
+      // Refresh fallback data
+      fetchResumesDirectly();
+      // Redirect to dashboard after successful upload
+      setTimeout(() => {
+        navigate('/candidate');
+      }, 1500); // Wait 1.5 seconds to show the success message
     },
     onError: (error) => {
       toast.error(error.response?.data?.detail || 'Upload failed');
@@ -36,6 +89,8 @@ const ResumeUpload = () => {
     onSuccess: () => {
       toast.success('Resume deleted successfully');
       queryClient.invalidateQueries('resumes');
+      // Refresh fallback data
+      fetchResumesDirectly();
     },
     onError: (error) => {
       toast.error(error.response?.data?.detail || 'Delete failed');
@@ -126,7 +181,7 @@ const ResumeUpload = () => {
     }
   };
 
-  if (isLoading) {
+  if (finalLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -216,9 +271,9 @@ const ResumeUpload = () => {
           <h3 className="text-lg font-medium text-gray-900">Your Resumes</h3>
         </div>
         <div className="card-content">
-          {resumes && resumes.length > 0 ? (
+          {finalResumes && finalResumes.length > 0 ? (
             <div className="space-y-4">
-              {resumes.map((resume) => (
+              {finalResumes.map((resume) => (
                 <div key={resume.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <FileText className="h-5 w-5 text-gray-400" />
@@ -265,7 +320,7 @@ const ResumeUpload = () => {
 
       {/* Tips */}
       <div className="card bg-blue-50 border-blue-200">
-        <div className="card-content">
+        <div className="card-content pt-6">
           <h3 className="text-lg font-medium text-blue-900 mb-2">Tips for Better Results</h3>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Use a clear, well-formatted resume</li>

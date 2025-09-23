@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 import uuid
 
-from database.connection import get_collection
+from database.firebase_adapter import get_collection
 from models.resume import CandidateRanking
 from models.job import JobApplicationResponse
 from auth.jwt_handler import get_current_hr_user, get_current_user

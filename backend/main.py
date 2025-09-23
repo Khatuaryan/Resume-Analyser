@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 
-from database.connection import connect_to_mongo, close_mongo_connection
+from database.firebase_connection import get_firebase_connection
 from routers import auth, jobs, resumes, candidates, skills, advanced_features
 from services.nlp_service import initialize_nlp_models
 from services.enhanced_nlp_service import initialize_enhanced_nlp
@@ -23,12 +23,12 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
     # Startup
-    await connect_to_mongo()
+    await get_firebase_connection()
     await initialize_nlp_models()
     await initialize_enhanced_nlp()
     yield
     # Shutdown
-    await close_mongo_connection()
+    # Firebase doesn't need explicit connection closing
 
 app = FastAPI(
     title="Smart Resume Analyzer Platform",

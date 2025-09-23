@@ -1,23 +1,6 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: resume_analyzer_mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: resume_analyzer
-    volumes:
-      - mongodb_data:/data/db
-      - ./data/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-    networks:
-      - resume_analyzer_network
-
   # FastAPI Backend
   backend:
     build:
@@ -28,18 +11,18 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/resume_analyzer?authSource=admin
-      - DATABASE_NAME=resume_analyzer
-      - SECRET_KEY=your-super-secret-key-change-in-production
+      - DATABASE_TYPE=firebase
+      - FIREBASE_PROJECT_ID=resume-analyzer-platform
+      - FIREBASE_CREDENTIALS_PATH=/app/firebase-service-account.json
+      - SECRET_KEY=Nfr1uhFFMnzmv7BagUUrITWl5D9vEWMS4A2QSzsApwU
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads
-    depends_on:
-      - mongodb
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     networks:
       - resume_analyzer_network
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: ./start.sh
 
   # React Frontend
   frontend:
@@ -77,10 +60,6 @@ services:
       - backend
     networks:
       - resume_analyzer_network
-
-volumes:
-  mongodb_data:
-    driver: local
 
 networks:
   resume_analyzer_network:

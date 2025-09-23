@@ -11,7 +11,7 @@ import os
 import aiofiles
 from pathlib import Path
 
-from database.connection import get_collection
+from database.firebase_adapter import get_collection
 from models.resume import (
     ResumeResponse, ResumeStatus, ParsedResumeData, ResumeAnalysis
 )
@@ -80,7 +80,7 @@ async def upload_resume(
         
         # Insert resume into database
         result = await resumes_collection.insert_one(resume_doc)
-        if not result.inserted_id:
+        if not result.get("inserted_id"):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to save resume"
@@ -89,6 +89,8 @@ async def upload_resume(
         # Start parsing process asynchronously
         await parse_resume_async(resume_id, str(file_path), file_extension)
         
+        # Map _id to id for the response
+        resume_doc["id"] = resume_doc.pop("_id")
         return ResumeResponse(**resume_doc)
         
     except Exception as e:
@@ -159,7 +161,7 @@ async def get_candidate_resumes(
     
     resumes = await resumes_collection.find({"candidate_id": current_user.user_id}).to_list(length=None)
     
-    return [ResumeResponse(**resume) for resume in resumes]
+    return [ResumeResponse(**{**resume, "id": resume["_id"]}) for resume in resumes]
 
 @router.get("/{resume_id}", response_model=ResumeResponse)
 async def get_resume(
@@ -183,7 +185,7 @@ async def get_resume(
             detail="Access denied"
         )
     
-    return ResumeResponse(**resume)
+    return ResumeResponse(**{**resume, "id": resume["_id"]})
 
 @router.delete("/{resume_id}")
 async def delete_resume(
@@ -212,7 +214,7 @@ async def delete_resume(
     # Delete resume from database
     result = await resumes_collection.delete_one({"_id": resume_id})
     
-    if result.deleted_count == 0:
+    if result.get("deleted_count", 0) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to delete resume"

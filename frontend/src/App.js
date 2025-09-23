@@ -18,6 +18,7 @@ import JobCandidates from './pages/JobCandidates';
 import CandidateRanking from './pages/CandidateRanking';
 import ResumeUpload from './pages/ResumeUpload';
 import SkillSuggestions from './pages/SkillSuggestions';
+import SkillsAnalysis from './pages/SkillsAnalysis';
 import Profile from './pages/Profile';
 
 // Components
@@ -28,8 +29,12 @@ import Layout from './components/Layout';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: 2,
       refetchOnWindowFocus: false,
+      staleTime: 0,
+      cacheTime: 0,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
     },
   },
 });
@@ -62,6 +67,7 @@ function App() {
                 {/* Candidate Routes */}
                 <Route path="/candidate" element={<CandidateDashboard />} />
                 <Route path="/candidate/resume" element={<ResumeUpload />} />
+                <Route path="/candidate/resume/:resumeId/skills" element={<SkillsAnalysis />} />
                 <Route path="/candidate/skills" element={<SkillSuggestions />} />
                 
                 {/* Common Routes */}

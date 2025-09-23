@@ -21,8 +21,12 @@ class UserBase(BaseModel):
     company: Optional[str] = Field(None, max_length=100)  # For HR users
     role: UserRole
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
     """User creation model."""
+    email: EmailStr
+    full_name: str = Field(..., min_length=2, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
+    company: Optional[str] = Field(None, max_length=100)
     password: str = Field(..., min_length=6, max_length=100)
 
 class UserLogin(BaseModel):

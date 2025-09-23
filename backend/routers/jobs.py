@@ -5,10 +5,10 @@ Handles job posting, updating, and candidate management.
 
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
-from database.connection import get_collection
+from database.firebase_adapter import get_collection
 from models.job import (
     JobCreate, JobUpdate, JobResponse, JobSearch, JobApplication,
     JobApplicationResponse, JobStatus, JobAnalytics, JobStatusUpdate,
@@ -30,7 +30,7 @@ async def create_job(
     # Create job document
     job_id = str(uuid.uuid4())
     now = datetime.utcnow()
-    completion_date = now.replace(day=now.day + job_data.auto_complete_days) if job_data.auto_complete_days else None
+    completion_date = now + timedelta(days=job_data.auto_complete_days) if job_data.auto_complete_days else None
     
     job_doc = {
         "_id": job_id,
@@ -62,7 +62,7 @@ async def create_job(
     
     # Insert job into database
     result = await jobs_collection.insert_one(job_doc)
-    if not result.inserted_id:
+    if not result.get("inserted_id"):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create job"

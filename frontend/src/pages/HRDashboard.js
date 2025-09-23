@@ -7,7 +7,12 @@ import {
   Eye,
   Plus,
   Building2,
-  Calendar
+  Calendar,
+  X,
+  MapPin,
+  DollarSign,
+  Clock,
+  Target
 } from 'lucide-react';
 import { jobsAPI } from '../services/api';
 
@@ -22,6 +27,24 @@ const HRDashboard = () => {
   const [showAllJobs, setShowAllJobs] = useState(true); // Default to showing all jobs
   const [currentPage, setCurrentPage] = useState(1);
   const [jobsPerPage] = useState(10);
+  const [showJobForm, setShowJobForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [jobFormData, setJobFormData] = useState({
+    title: '',
+    description: '',
+    company: '',
+    location: '',
+    job_type: 'full_time',
+    experience_level: 'mid',
+    salary_min: '',
+    salary_max: '',
+    required_skills: '',
+    preferred_skills: '',
+    benefits: '',
+    responsibilities: '',
+    qualifications: '',
+    auto_complete_days: 15
+  });
 
   // Fetch jobs using useEffect
   const fetchJobs = async () => {
@@ -41,6 +64,66 @@ const HRDashboard = () => {
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  // Handle job form submission
+  const handleJobSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      // Process form data
+      const processedData = {
+        ...jobFormData,
+        required_skills: jobFormData.required_skills.split(',').map(skill => skill.trim()).filter(skill => skill),
+        preferred_skills: jobFormData.preferred_skills.split(',').map(skill => skill.trim()).filter(skill => skill),
+        benefits: jobFormData.benefits.split(',').map(benefit => benefit.trim()).filter(benefit => benefit),
+        responsibilities: jobFormData.responsibilities.split(',').map(resp => resp.trim()).filter(resp => resp),
+        qualifications: jobFormData.qualifications.split(',').map(qual => qual.trim()).filter(qual => qual),
+        salary_min: jobFormData.salary_min ? parseInt(jobFormData.salary_min) : null,
+        salary_max: jobFormData.salary_max ? parseInt(jobFormData.salary_max) : null,
+        auto_complete_days: parseInt(jobFormData.auto_complete_days)
+      };
+
+      await jobsAPI.createJob(processedData);
+      
+      // Reset form and close
+      setJobFormData({
+        title: '',
+        description: '',
+        company: '',
+        location: '',
+        job_type: 'full_time',
+        experience_level: 'mid',
+        salary_min: '',
+        salary_max: '',
+        required_skills: '',
+        preferred_skills: '',
+        benefits: '',
+        responsibilities: '',
+        qualifications: '',
+        auto_complete_days: 15
+      });
+      setShowJobForm(false);
+      
+      // Refresh jobs list
+      await fetchJobs();
+      
+    } catch (err) {
+      console.error('Error creating job:', err);
+      alert('Failed to create job. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setJobFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   // Ensure jobs is always an array
   const jobsArray = Array.isArray(jobs) ? jobs : [];
@@ -157,13 +240,13 @@ const HRDashboard = () => {
           <p className="text-gray-600">Manage your job postings and candidates</p>
         </div>
         {jobsArray.length > 0 && (
-          <Link
-            to="/hr/jobs?create=true"
+          <button
+            onClick={() => setShowJobForm(true)}
             className="inline-flex items-center px-4 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors duration-200 shadow-sm hover:shadow-md"
           >
             <Plus className="h-4 w-4 mr-2" />
             Post New Job
-          </Link>
+          </button>
         )}
       </div>
 
@@ -322,14 +405,276 @@ const HRDashboard = () => {
               <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-6" />
               <h3 className="text-xl font-semibold text-gray-900 mb-3">No jobs posted yet</h3>
               <p className="text-gray-500 mb-8 max-w-md mx-auto">Get started by posting your first job opening and begin attracting top talent to your organization.</p>
-              <Link
-                to="/hr/jobs"
+              <button
+                onClick={() => setShowJobForm(true)}
                 className="inline-flex items-center px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors duration-200 shadow-sm hover:shadow-md"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Post Your First Job
-              </Link>
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Job Creation Form Modal */}
+      {showJobForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Create New Job Posting</h2>
+              <button
+                onClick={() => setShowJobForm(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleJobSubmit} className="p-6 space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={jobFormData.title}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., Senior Software Engineer"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Company *
+                  </label>
+                  <input
+                    type="text"
+                    name="company"
+                    value={jobFormData.company}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Your company name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location *
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={jobFormData.location}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., San Francisco, CA"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Type *
+                  </label>
+                  <select
+                    name="job_type"
+                    value={jobFormData.job_type}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="full_time">Full Time</option>
+                    <option value="part_time">Part Time</option>
+                    <option value="contract">Contract</option>
+                    <option value="internship">Internship</option>
+                    <option value="remote">Remote</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Experience Level *
+                  </label>
+                  <select
+                    name="experience_level"
+                    value={jobFormData.experience_level}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="entry">Entry Level</option>
+                    <option value="junior">Junior</option>
+                    <option value="mid">Mid Level</option>
+                    <option value="senior">Senior</option>
+                    <option value="lead">Lead</option>
+                    <option value="executive">Executive</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Auto Complete Days
+                  </label>
+                  <input
+                    type="number"
+                    name="auto_complete_days"
+                    value={jobFormData.auto_complete_days}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="365"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              {/* Salary Range */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Minimum Salary
+                  </label>
+                  <input
+                    type="number"
+                    name="salary_min"
+                    value={jobFormData.salary_min}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., 80000"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Maximum Salary
+                  </label>
+                  <input
+                    type="number"
+                    name="salary_max"
+                    value={jobFormData.salary_max}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., 120000"
+                  />
+                </div>
+              </div>
+
+              {/* Job Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Job Description *
+                </label>
+                <textarea
+                  name="description"
+                  value={jobFormData.description}
+                  onChange={handleInputChange}
+                  required
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Describe the role, responsibilities, and what you're looking for..."
+                />
+              </div>
+
+              {/* Skills */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Required Skills
+                  </label>
+                  <input
+                    type="text"
+                    name="required_skills"
+                    value={jobFormData.required_skills}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., JavaScript, React, Node.js (comma separated)"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preferred Skills
+                  </label>
+                  <input
+                    type="text"
+                    name="preferred_skills"
+                    value={jobFormData.preferred_skills}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., TypeScript, AWS, Docker (comma separated)"
+                  />
+                </div>
+              </div>
+
+              {/* Responsibilities */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Key Responsibilities
+                </label>
+                <input
+                  type="text"
+                  name="responsibilities"
+                  value={jobFormData.responsibilities}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., Develop web applications, Code reviews, Team collaboration (comma separated)"
+                />
+              </div>
+
+              {/* Qualifications */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Required Qualifications
+                </label>
+                <input
+                  type="text"
+                  name="qualifications"
+                  value={jobFormData.qualifications}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., Bachelor's degree, 3+ years experience, Portfolio (comma separated)"
+                />
+              </div>
+
+              {/* Benefits */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Benefits & Perks
+                </label>
+                <input
+                  type="text"
+                  name="benefits"
+                  value={jobFormData.benefits}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., Health insurance, 401k, Flexible hours, Remote work (comma separated)"
+                />
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowJobForm(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-6 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Creating...' : 'Create Job'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

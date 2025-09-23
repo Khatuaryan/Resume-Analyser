@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
 
-from database.connection import get_collection
+from database.firebase_adapter import get_collection
 from models.resume import SkillRecommendation
 from auth.jwt_handler import get_current_candidate_user, get_current_user
 from services.nlp_service import nlp_service

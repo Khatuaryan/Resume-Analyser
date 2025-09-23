@@ -1,0 +1,4 @@
+# Firebase dependencies
+firebase-admin==6.4.0
+google-cloud-firestore==2.13.1
+python-dotenv==1.0.0

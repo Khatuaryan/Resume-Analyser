@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import uuid
 
-from database.connection import get_collection
+from database.firebase_adapter import get_collection
 from models.user import (
     UserCreate, UserLogin, UserResponse, Token, UserRole,
     HRProfile, CandidateProfile, UserInDB
