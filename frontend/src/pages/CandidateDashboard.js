@@ -407,11 +407,8 @@ const CandidateDashboard = () => {
                       )}
                   </div>
                     <div className="flex flex-col items-end space-y-2 ml-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {job.job_type?.replace('_', ' ') || 'Full Time'}
-                      </span>
                     <Link
-                      to={`/jobs/${job.id}`}
+                      to={`/candidate/jobs/${job.id}`}
                       className="text-primary-600 hover:text-primary-500 text-sm font-medium"
                     >
                         View Details

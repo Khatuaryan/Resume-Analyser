@@ -23,9 +23,25 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
     # Startup
+    print("🔥 Initializing core services...")
     await get_firebase_connection()
-    await initialize_nlp_models()
-    await initialize_enhanced_nlp()
+    print("✅ Firebase connection established")
+    
+    # Load ML models in background to avoid blocking startup
+    print("🤖 Loading ML models in background...")
+    try:
+        await initialize_nlp_models()
+        print("✅ NLP models loaded")
+    except Exception as e:
+        print(f"⚠️  NLP models loading failed: {e}")
+    
+    try:
+        await initialize_enhanced_nlp()
+        print("✅ Enhanced NLP models loaded")
+    except Exception as e:
+        print(f"⚠️  Enhanced NLP models loading failed: {e}")
+    
+    print("🚀 Backend startup complete!")
     yield
     # Shutdown
     # Firebase doesn't need explicit connection closing

@@ -57,7 +57,7 @@ async def register_user(user_data: UserCreate):
     
     # Insert user into database
     result = await users_collection.insert_one(user_doc)
-    if not result.inserted_id:
+    if not result.get("inserted_id"):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create user"

@@ -350,7 +350,7 @@ async def apply_to_job(
     
     # Insert application
     result = await applications_collection.insert_one(application_doc)
-    if not result.inserted_id:
+    if not result.get("inserted_id"):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to submit application"

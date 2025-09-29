@@ -36,6 +36,14 @@ A comprehensive AI-powered resume analysis platform that helps HR professionals 
 
 ## 🚀 Quick Start
 
+### 🔐 **Immediate Login Access**
+After running `docker-compose up -d`, you can immediately login:
+
+**👨‍💼 Admin (HR)**: `admin@resumeanalyzer.com` / `password123@`  
+**👤 Candidates**: Register new accounts to get started
+
+> **🎯 No setup required!** The system automatically creates admin user and is ready for real users.
+
 ### Prerequisites
 - **Docker Desktop** (Latest version)
 - **Git** (Optional)

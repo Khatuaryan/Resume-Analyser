@@ -19,6 +19,7 @@ import CandidateRanking from './pages/CandidateRanking';
 import ResumeUpload from './pages/ResumeUpload';
 import SkillSuggestions from './pages/SkillSuggestions';
 import SkillsAnalysis from './pages/SkillsAnalysis';
+import CandidateJobDetails from './pages/CandidateJobDetails';
 import Profile from './pages/Profile';
 
 // Components
@@ -68,6 +69,7 @@ function App() {
                 <Route path="/candidate" element={<CandidateDashboard />} />
                 <Route path="/candidate/resume" element={<ResumeUpload />} />
                 <Route path="/candidate/resume/:resumeId/skills" element={<SkillsAnalysis />} />
+                <Route path="/candidate/jobs/:jobId" element={<CandidateJobDetails />} />
                 <Route path="/candidate/skills" element={<SkillSuggestions />} />
                 
                 {/* Common Routes */}
